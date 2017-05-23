@@ -171,13 +171,9 @@ def warp(img, M):
     # Warp the image using OpenCV warpPerspective()
     warped = cv2.warpPerspective(img, M, img_size)
 
-    f, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
-    f.tight_layout()
-    ax1.imshow(img,cmap='gray')
-    ax1.set_title('Original Image')
-    ax2.imshow(warped,cmap='gray')
-    ax2.set_title('Undistorted and Warped Image')
-    plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
+    plt.figure()
+    plt.imshow(warped,cmap='gray')
+    plt.title('Image after perspective transformation')
     
     # Return the resulting image and matrix
     return warped
@@ -397,7 +393,7 @@ def drawing(undist, warped, left_fitx, right_fitx, leftCurve, rightCurve, offset
     plt.text(0,100,'Lane Offset: %.2f m'%offset, color='white')
     
     plt.imshow(result)
-#%% main Pipeline
+#%% main pipeline for test images
 
 #check to see if camera has been calibrated, if not then calibrate camera
 if os.path.isfile(calPath + calFname):
@@ -409,8 +405,9 @@ else:
     calDict = pickle.load(open(calPath + calFname,'rb'))
 
 #read in test images
+"""
 testImages = glob.glob(testPath + '*.jpg')
-testImages = [testImages[0], testImages[1]]
+testImages = [testImages[0]]
 
 M = None
 left_fit = None
@@ -446,5 +443,75 @@ for idx, fname in enumerate(testImages):
     rewarp = warp(birdsEye, Minv)
     
     drawing(undistortedImg, rewarp, left_fitx, right_fitx, left_curverad, right_curverad, center_of_lane)
+"""       
+def process_image(img):
+    
+    #undistort each image
+    undistortedImg = undistort(img, calDict['mtx'], calDict['dist'])
+    
+    #apply color and gradient thresholding
+    thresholdBinaryImg = color_gradient_threshold(undistortedImg)
+    
+    #calculate perspective transform matrix
+    M, Minv = perspective_transform(thresholdBinaryImg)
+    
+    #apply perspective transform
+    birdsEye = warp(thresholdBinaryImg, M)
+    
+    #find lane lines
+    if (left_fit is not None) and (right_fit is not None):
+        left_fit, right_fit, lefty, leftx, righty, rightx, left_fitx, right_fitx = detectExistingLaneLines(birdsEye, left_fit, right_fit)
+    else:
+        left_fit, right_fit, lefty, leftx, righty, rightx, left_fitx, right_fitx = detectNewLaneLines(birdsEye)
+    
+    left_curverad, right_curverad = calculateCurvature(lefty, leftx, righty, rightx)
         
+    center_of_lane = calculatePosition(left_fitx, right_fitx)
+    
+    rewarp = warp(birdsEye, Minv)
+    
+    drawing(undistortedImg, rewarp, left_fitx, right_fitx, left_curverad, right_curverad, center_of_lane)
+        
+#%%
+
+# Define a class to receive the characteristics of each line detection
+class Line():
+    def __init__(self):
+        # was the line detected in the last iteration?
+        self.detected = False  
+        # x values of the last n fits of the line
+        self.recent_xfitted = [] 
+        #average x values of the fitted line over the last n iterations
+        self.bestx = None     
+        #polynomial coefficients averaged over the last n iterations
+        self.best_fit = None  
+        #polynomial coefficients for the most recent fit
+        self.current_fit = [np.array([False])]  
+        #radius of curvature of the line in some units
+        self.radius_of_curvature = None 
+        #distance in meters of vehicle center from the line
+        self.line_base_pos = None 
+        #difference in fit coefficients between last and new fits
+        self.diffs = np.array([0,0,0], dtype='float') 
+        #x values for detected line pixels
+        self.allx = None  
+        #y values for detected line pixels
+        self.ally = None
+#%%
+from moviepy.editor import VideoFileClip
+from IPython.display import HTML
+
+leftLine = Line()
+rightLine = Line()
+
+output = 'project_video_result.mp4'
+clipObj = VideoFileClip("project_video.mp4")
+clip = clipObj.fl_image(process_image) 
+clip.write_videofile(output, audio=False)
+
+#HTML("""
+#<video width="960" height="540" controls>
+#  <source src="{0}">
+#</video>
+#""".format(output))
 
