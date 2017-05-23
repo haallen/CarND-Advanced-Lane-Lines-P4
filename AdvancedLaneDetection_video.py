@@ -25,8 +25,12 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 
+#path to output images and videos for submission
+outPath = '/Users/hope/Documents/python/carND/CarND-Advanced-Lane-Lines/output_images/'
+
 #path to calibration file and images used/generated in calibration process
 calPath = '/Users/hope/Documents/python/carND/CarND-Advanced-Lane-Lines/camera_cal/'
+
 #name of camera calibration file
 calFname = 'cameraCalibration.p'
 #%%
@@ -65,8 +69,8 @@ def calibrateCamera(calPath, calFname):
     
             # Draw and display the corners
             cv2.drawChessboardCorners(img, (nx,ny), corners, ret)
-            write_name = calPath + 'corners_found'+str(idx)+'.jpg'
-            cv2.imwrite(write_name, img)
+            #write_name = calPath + 'corners_found'+str(idx)+'.jpg'
+            #cv2.imwrite(write_name, img)
     
             cv2.imshow('img', img)
             cv2.waitKey(500)
@@ -87,7 +91,7 @@ def calibrateCamera(calPath, calFname):
     # Test undistortion on an image
     img = cv2.imread(calPath + 'calibration1.jpg')
     dst = cv2.undistort(img, mtx, dist, None, mtx)
-    cv2.imwrite(calPath + 'test_undist_cal1.jpg',dst)
+    #cv2.imwrite(outPath + 'test_undist_cal1.jpg',dst)
     
     # Visualize undistortion
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))

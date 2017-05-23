@@ -25,6 +25,9 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 
+#path to output images and videos for submission
+outPath = '/Users/hope/Documents/python/carND/CarND-Advanced-Lane-Lines/output_images/'
+
 #path to calibration file and images used/generated in calibration process
 calPath = '/Users/hope/Documents/python/carND/CarND-Advanced-Lane-Lines/camera_cal/'
 #name of camera calibration file
@@ -103,6 +106,7 @@ def calibrateCamera(calPath, calFname):
 #Step 2: Apply a distortion correction to raw images.
 def undistort(img, mtx, dist):
     dst = cv2.undistort(img, mtx, dist, None, mtx)
+    cv2.imwrite(outPath + 'undistort_example.jpg',dst)
     return dst
 
 #%% Step 3: Use color transforms, gradients, etc., to create a thresholded binary image.
@@ -405,7 +409,7 @@ else:
     calDict = pickle.load(open(calPath + calFname,'rb'))
 
 #read in test images
-"""
+
 testImages = glob.glob(testPath + '*.jpg')
 testImages = [testImages[0]]
 
@@ -508,10 +512,5 @@ output = 'project_video_result.mp4'
 clipObj = VideoFileClip("project_video.mp4")
 clip = clipObj.fl_image(process_image) 
 clip.write_videofile(output, audio=False)
-
-#HTML("""
-#<video width="960" height="540" controls>
-#  <source src="{0}">
-#</video>
-#""".format(output))
+"""
 
