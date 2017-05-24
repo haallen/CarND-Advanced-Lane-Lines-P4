@@ -109,36 +109,49 @@ def undistort(img, mtx, dist):
 #%% Step 3: Use color transforms, gradients, etc., to create a thresholded binary image.
 def color_gradient_threshold(img):
     
-    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
-    s_channel = hls[:,:,2]
-    
+    ##perform gradient thresholding
+    #convert to greyscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float)
-    
     # Sobel x
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0) # Take the derivative in x
     abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
     scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
     
     # Threshold x gradient
-    thresh_min = 20
-    thresh_max = 100
+    thresh_min = 40#20
+    thresh_max = 100#100
     sxbinary = np.zeros_like(scaled_sobel)
     sxbinary[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
     
-    # Threshold color channel
-    s_thresh_min = 170
-    s_thresh_max = 255
+    ##perform color thresholding
+    #convert image to HLS
+    hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
+    #select saturation channel
+    s_channel = hls[:,:,2]
+    l_channel = hls[:,:,1]
+    
+    # Threshold saturation channel
+    s_thresh_min = 75#170
+    s_thresh_max = 255#255
     s_binary = np.zeros_like(s_channel)
     s_binary[(s_channel >= s_thresh_min) & (s_channel <= s_thresh_max)] = 1
     
+    # Threshold brightness channel
+    l_thresh_min = 50#170
+    l_thresh_max = 255#255
+    l_binary = np.zeros_like(s_channel)
+    l_binary[(l_channel >= l_thresh_min) & (l_channel <= l_thresh_max)] = 1
+    combined_color= np.zeros_like(s_binary)
+    combined_color[(s_binary == 1) & (l_binary == 1)] = 1
+    
     # Stack each channel to view their individual contributions in green and blue respectively
     # This returns a stack of the two binary images, whose components you can see as different colors
-    #color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary))
+    #blue = s_binary
+    #color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, combined_color))
 
-    # Combine the two binary thresholds
+    # Combine the color and gradient binary thresholds
     combined_binary = np.zeros_like(sxbinary)
-    combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
-    
+    combined_binary[(combined_color == 1) | (sxbinary == 1)] = 1
     """
     # Plotting thresholded images
     f, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,5))
@@ -151,16 +164,37 @@ def color_gradient_threshold(img):
     plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
     """
     return combined_binary
-
 #%% Step 4: Apply a perspective transform to rectify binary image ("birds-eye view").
-def perspective_transform(img):
-    #assume camera orientation is fixed 
+def region_of_interest(img, vertices):
+    """
+    Applies an image mask.
     
+    Only keeps the region of the image defined by the polygon
+    formed from `vertices`. The rest of the image is set to black.
+    """
+    #defining a blank mask to start with
+    mask = np.zeros_like(img)   
+    
+    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+    if len(img.shape) > 2:
+        channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+        ignore_mask_color = (255,) * channel_count
+    else:
+        ignore_mask_color = 255
+        
+    #filling pixels inside the polygon defined by "vertices" with the fill color    
+    cv2.fillPoly(mask, vertices, ignore_mask_color)
+   
+    #returning the image only where mask pixels are nonzero
+    masked_image = cv2.bitwise_and(img, mask)
+    return masked_image
+def perspective_transform():
+    #assume camera orientation is fixed 
     #source points
-    src = np.float32([[(200, 720), (570, 470), (720, 470), (1130, 720)]])
+    src = np.float32([[(200, 720), (575, 475), (720, 475), (1125, 720)]])
     
     #destination points
-    dst = np.float32([[(350, 720), (350, 0), (980, 0), (980, 720)]])
+    dst = np.float32([[(350, 720), (350, 0), (975, 0), (975, 720)]])
     
     # Given src and dst points, calculate the perspective transform matrix
     M = cv2.getPerspectiveTransform(src, dst)
@@ -183,7 +217,6 @@ def warp(img, M):
 
 #%% Step 5: Detect lane pixels and fit to find the lane boundary.
 def detectNewLaneLines(img):
-    
     # Choose the number of sliding windows
     nwindows = 9
     # Set height of windows
@@ -256,10 +289,13 @@ def detectNewLaneLines(img):
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds] 
 
-    # Fit a second order polynomial to each
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
-    
+    if not leftx.size or not lefty.size or not rightx.size or not righty.size:
+        left_fit = None
+        right_fit = None
+    else:  
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
     """
     # Generate x and y values for plotting
     ploty = np.linspace(0, img.shape[0]-1, img.shape[0] )
@@ -299,9 +335,13 @@ def detectExistingLaneLines(img):
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds]
     
-    # Fit a second order polynomial to each
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
+    if not leftx.size or not lefty.size or not rightx.size or not righty.size:
+        left_fit = None
+        right_fit = None
+    else:  
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
     
     """
     # Generate x and y values for plotting
@@ -360,7 +400,7 @@ def calculateCurvature(leftx, rightx, lefty, righty):
     right_curverad =((1 + (2*right_fit_cr[0]*right_y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
     
     # Now our radius of curvature is in meters
-    print(left_curverad, 'm', right_curverad, 'm')
+    #print(left_curverad, 'm', right_curverad, 'm')
     
     return left_curverad, right_curverad
 
@@ -370,16 +410,15 @@ def calculatePosition(left_fit, right_fit):
     #center of image in pixels
     center = 1280.0/2
     
+    #for each value of y, calculate the x value of each lane
     ploty = np.linspace(0, 720-1, 720)
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
     
-    #left_fitx = leftLine.current_fit[0]*ploty**2 + leftLine.current_fit[1]*ploty + leftLine.current_fit[2]
-    #right_fitx = rightLine.current_fit[0]*ploty**2 + rightLine.current_fit[1]*ploty + rightLine.current_fit[2]
     #position from center of lane in meters
     pos_from_center = (center - (left_fitx[-1]+right_fitx[-1])/2)*xm_per_pix
     
-    print(pos_from_center,'m')
+    #print(pos_from_center,'m')
     
     return pos_from_center
 #%% Step 7: Warp the detected lane boundaries back onto the original image.
@@ -419,39 +458,44 @@ def drawing(undist, warped, Minv):
     return result
 
 #%%sanity check
+#really rough check on the detected lines to see if they make sense
+#currently checking to see if the  curvatures, slopes and the distance between the lines make sense
+#update - only checking distance; curvature and slope calculations too noise
 def sanityCheck(leftC, rightC,left_fit, right_fit):
     curveFlag = True
     distFlag = True
     parallelFlag = True 
-    
+    """
     #check for similiar curvature
-    if abs(leftC/rightC) < 0.1 or  abs(leftC/rightC) >= 10.0 :
+    if abs(leftC/rightC) < 0.06 or  abs(leftC/rightC) >= 15.0 :
+        print("curvature is bad!")
         print(leftC, rightC)
-        print("curves aren't similiar! %s"%abs(leftC/rightC))
         curveFlag = False
- 
+        pass
+    """
     #check for distance
     ploty = np.linspace(0, 720-1, 720)
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
     dist = abs(left_fitx[-1] - right_fitx[-1])
     
-    if dist > 900 or dist< 400:
+    if dist > 1100 or dist< 300:
         distFlag = False
         print("distance is bad!")
         print(dist)
-    
+    """
     #check for parallel
     leftslope = 720.0/(left_fitx[-1] - left_fitx[0])
     rightslope = 720.0/(right_fitx[-1] - right_fitx[0])
     
     
-    if abs(leftslope/rightslope) < 0.333 or  abs(leftslope/rightslope)>5.0:
+    if abs(leftslope/rightslope) < 0.1 or  abs(leftslope/rightslope)>10.0:
         parallelFlag = False
         print("lines not parallel!")
         print(leftslope, rightslope)
-        
+    """
     return (curveFlag and distFlag and parallelFlag)
+
 #%%
 
 # Define a class to receive the characteristics of each line detection
@@ -487,21 +531,12 @@ class Line():
         
         #y values for detected line pixels
         self.ally = None
-#%% main pipeline for test images
-
-#check to see if camera has been calibrated, if not then calibrate camera
-if os.path.isfile(calPath + calFname):
-    #calDict is dictionary with mtx and dist as the keys
-    calDict = pickle.load(open(calPath + calFname,'rb'))
-else:
-    calibrateCamera(calPath, calFname)
-    #okay, i know this isn't very robust, but should be okay for now
-    calDict = pickle.load(open(calPath + calFname,'rb'))
-
+        
+        #number of times the detected line was deemed 'bad'
+        #if this counter exceeds a threshold, then calculate a new fit
+        self.badCounter = 0
+#%%
 def process_image(img):
-    
-    badCounter = 0 
-    maxBadTimes = 5
     
     #undistort each image
     undistortedImg = undistort(img, calDict['mtx'], calDict['dist'])
@@ -509,48 +544,70 @@ def process_image(img):
     #apply color and gradient thresholding
     thresholdBinaryImg = color_gradient_threshold(undistortedImg)
     
-    #calculate perspective transform matrix
-    M, Minv = perspective_transform(thresholdBinaryImg)
+    #apply region of interest mask around thresholded image
+    vertices = np.array([[(img.shape[1]*.1,img.shape[0]),
+                           (img.shape[1]*.48,img.shape[0]*.50), 
+                           (img.shape[1]*.52, img.shape[0]*.50), 
+                           (img.shape[1]*.95,img.shape[0])]], dtype=np.int32)
+    masked_threshold = region_of_interest(thresholdBinaryImg, vertices)
     
     #apply perspective transform
-    birdsEye = warp(thresholdBinaryImg, M)
-    
-    #find lane lines
+    birdsEye = warp(masked_threshold, M)
+
+    #if a valid left and right lane were previously detected
+    #then use those line fits to draw the lines
+    #if the previously detected lanes are not valid,
+    #then calculate a new fit for the lanes
     if leftLine.detected and rightLine.detected:
         left_fit, right_fit, leftx, rightx, lefty, righty = detectExistingLaneLines(birdsEye)
     else:
         left_fit, right_fit, leftx, rightx, lefty, righty = detectNewLaneLines(birdsEye)
+    
+    if left_fit is not None and right_fit is not None:   
+        #if lanes were detected on this frame, then calculate curvature and position
+        leftCurve, rightCurve = calculateCurvature(leftx, rightx, lefty, righty)
+                
+        pos_from_center = calculatePosition(left_fit, right_fit)
         
-    leftCurve, rightCurve = calculateCurvature(leftx, rightx, lefty, righty)
+        #perform basic sanity check on detected lane lines
+        if sanityCheck(leftCurve, rightCurve,left_fit, right_fit):
+            leftLine.detected = True
+            rightLine.detected = True
             
-    pos_from_center = calculatePosition(left_fit, right_fit)
-    
-    if sanityCheck(leftCurve, rightCurve,left_fit, right_fit):
-        #polynomial coefficients for the most recent fit
-        leftLine.current_fit = left_fit
-        rightLine.current_fit = right_fit
-    
-        #x values for detected line pixels
-        leftLine.allx = leftx  
-        rightLine.allx = rightx 
-    
-        #y values for detected line pixels
-        leftLine.ally = lefty  
-        rightLine.ally = righty
-
-        leftLine.radius_of_curvature = leftCurve
-        rightLine.radius_of_curvature = rightCurve
+            #polynomial coefficients for the most recent fit
+            leftLine.current_fit = left_fit
+            rightLine.current_fit = right_fit
         
-        leftLine.line_base_pos = pos_from_center
-        rightLine.line_base_pos = pos_from_center
+            #x values for detected line pixels
+            leftLine.allx = leftx  
+            rightLine.allx = rightx 
         
-        badCounter = 0
+            #y values for detected line pixels
+            leftLine.ally = lefty  
+            rightLine.ally = righty
+    
+            leftLine.radius_of_curvature = leftCurve
+            rightLine.radius_of_curvature = rightCurve
+            
+            leftLine.line_base_pos = pos_from_center
+            rightLine.line_base_pos = pos_from_center
+            
+            leftLine.badCounter = 0
+            rightLine.badCounter = 0
+        else:
+            leftLine.badCounter +=1
+            rightLine.badCounter +=1  
     else:
-        badCounter +=1
-        if badCounter > maxBadTimes:
-            print("number of bad measurements reached! recalculating windows!")
-            leftLine.detected = False
-            rightLine.detected = False
+        # if lanes weren't detected on this frame, then increment counter
+        leftLine.badCounter +=1
+        rightLine.badCounter +=1
+        
+    if leftLine.badCounter > maxBadTimes:
+        print("number of bad measurements reached! recalculating fit!")
+        leftLine.detected = False
+        rightLine.detected = False
+        leftLine.badCounter = 0
+        rightLine.badCounter = 0
             
     rewarp = warp(birdsEye, Minv)
         
@@ -563,6 +620,21 @@ from moviepy.editor import VideoFileClip
 
 leftLine = Line()
 rightLine = Line()
+#%% main pipeline for test images
+
+#check to see if camera has been calibrated, if not then calibrate camera
+if os.path.isfile(calPath + calFname):
+    #calDict is dictionary with mtx and dist as the keys
+    calDict = pickle.load(open(calPath + calFname,'rb'))
+else:
+    calibrateCamera(calPath, calFname)
+    #okay, i know this isn't very robust, but should be okay for now
+    calDict = pickle.load(open(calPath + calFname,'rb'))
+
+maxBadTimes = 0#number of bad frames to wait before calculating new fit
+
+#calculate perspective transform matrix
+M, Minv = perspective_transform()
 
 output = 'project_video_output.mp4'
 clipObj = VideoFileClip("project_video.mp4")
