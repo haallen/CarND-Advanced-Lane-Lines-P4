@@ -15,11 +15,11 @@ The goals / steps of this project are the following:
 
 [image1]: ./output_images/calibration.png "Distorted and Undistorted Comparison of Calibration Image 1"
 [image2]: ./output_images/undistort_example.jpg "Undistorted Test Image"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
+[image3]: ./output_images/color_gradient_threshold.png "Color and Gradient Thresholding"
+[image4]: ./output_images/perspective_transform.png "Warp Example"
+[image5]: ./output_images/fittedLines.png "Fit Visual"
+[image6]: ./output_images/identifiedLane.png "Output"
+[video1]: ./output_images/project_video_output.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -68,39 +68,40 @@ The camera matrix and distortion coefficients that were calculated as described 
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 
-I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `another_file.py`).  Here's an example of my output for this step.  (note: this is not actually from one of the test images)
+I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines #110 through #167 in [file](AdvancedLaneDetection_video.py).  I implemented the algorithms described in the 'Color and Gradient' lesson to use both directional gradient and color thresholding. 
+
+I first apply direction gradient thresholding by converting the image to greyscale and use the Sobel operator to take the gradient in the x direction, take the absolute value of the gradient, and then scale the result to a value between 0 and 255. Then a binary threshold was applied. 
+
+I then performed color thresholding by converting the image into HLS color space and thresholding on both the saturation and the brightness channels. By combining the outputs of these thresholds, I am making sure that yellow and white lines are detected and shadows and other dark lines are ignored. 
+
+I arrived at the values for all my thresholds through trial and error. More time could be spent here to find optimal thresholds.
+
+Here's an example of my output for this step.
 
 ![alt text][image3]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-The code for my perspective transform includes a function called `warper()`, which appears in lines 1 through 8 in the file `example.py` (output_images/examples/example.py) (or, for example, in the 3rd code cell of the IPython notebook).  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  I chose the hardcode the source and destination points in the following manner:
+The code for my perspective transform is in lines 192 through 218 in the file [file](AdvancedLaneDetection_video.py) (output_images/examples/example.py) .
 
-```python
-src = np.float32(
-    [[(img_size[0] / 2) - 55, img_size[1] / 2 + 100],
-    [((img_size[0] / 6) - 10), img_size[1]],
-    [(img_size[0] * 5 / 6) + 60, img_size[1]],
-    [(img_size[0] / 2 + 55), img_size[1] / 2 + 100]])
-dst = np.float32(
-    [[(img_size[0] / 4), 0],
-    [(img_size[0] / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), img_size[1]],
-    [(img_size[0] * 3 / 4), 0]])
-```
+The perspective_transform function calculates the perspective transform matrix and inverse for a hardcoded set of source and destination points
+I chose the hardcode the source and destination points in the following manner:
 
 This resulted in the following source and destination points:
 
 | Source        | Destination   | 
 |:-------------:|:-------------:| 
-| 585, 460      | 320, 0        | 
-| 203, 720      | 320, 720      |
-| 1127, 720     | 960, 720      |
-| 695, 460      | 960, 0        |
+| 200, 720      | 350, 720      |
+| 575, 475      | 350, 0        | 
+| 720, 475      | 975, 0        |
+| 1125, 720     | 975, 720      |
 
-I verified that my perspective transform was working as expected by drawing the `src` and `dst` points onto a test image and its warped counterpart to verify that the lines appear parallel in the warped image.
+The perspective matrix returned by the perspective_transform method is input into the warm method along with the thresholded image. The matrix is applied to the image and returned back to the pipeline.  
 
+Here's an example of the perspective transformation:
 ![alt text][image4]
+
+Note: before I applied the perspective transform, I applied a mask to the output of the thresholding so that only the pixels in a region of interest are processed. 
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
@@ -118,11 +119,17 @@ Here's an example of my polynomial fit through non-zero pixels:
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+I did this in lines #381 through #415 in my code.
+
+To calculate the curvature, I scaled the lane-line pixel positions for both the left and right lane lines to meters using the provided conversion factor. I then fit lines through the scaled points and calculated the radius of curvature for each of the lines using the provided formula. 
+
+To calculate position of vehicle with respect to center, I used the fitted parameters for the left and right lane lines to calculate the x pixel value where each lane line crosses the x-axis. I averaged the left lane and right lane x values and subtracted the average from the value of the center of the image. I then converted this distace to meters to obtain the position of the vehicle with respect to the center of the image.
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+I implemented this step in lines #422 through #454 in my code. Not much to say here.  
+
+Here is an example of my result on a test image:
 
 ![alt text][image6]
 
@@ -132,7 +139,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video.mp4).
 
 ---
 
@@ -145,3 +152,4 @@ If I had more time I would investigate two items. The first would be to fine-tun
 The second item that I would look into is smoothing my lane lines across frames of the video. I am using the Lines class as suggested in the lectures, but haven't had time to determine the best approach to averaging across frames. 
 
 I can also imagine that my implementation could have issues if there is a white or yellow car directly in front of it in the same lane. I would also like to investigate different lighting conditions. The provided video and test images were taken in bright daylight and I could imagine my color and gradient thresholding having issues in other types of lighting. 
+
