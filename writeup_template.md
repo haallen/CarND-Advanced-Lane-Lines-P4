@@ -104,7 +104,15 @@ I verified that my perspective transform was working as expected by drawing the 
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+The identification of lane line pixels and fitting to a polynomial happens in lines #220 through #378 of [file](AdvancedLaneDetection_video.py). The input is the warped, thresholded image. I have two separate functions, detectNewLaneLines and detectExistingLaneLines, that are called depending on whether to leverage previous lane fit information or to start from scratch. The decision on whether or not to start from scratch will be detailed later. 
+
+detectNewLaneLines - Creates histogram of the bottom half of the image and finds the peak of the left and right hand side of the histogram. These position of these two peaks will be the starting points for the left and right lane line pixel positions, respectively. The image is then divided into a specified number of smaller windows starting at the x positions of the histogram peaks. Each window is iterated over and the indices of the nonzero pixels within each window are identified and stored. With each iteration, the position of the window is determined based on the average x-positions of the previous window's detected nonzero pixels. When all of the windows have been processed, two lines are fit with a second order polynomial through the non-zero pixel positions in all of the windows.
+
+detectExistingLaneLines - leverages the current lane line fit. Does not require histograming or the sliding window approach of detectNewLaneLines. Instead, it looks for nonzero pixels along the line. 
+
+In my pipeline, I have two checks for whether a new lane line fit should be calculated or to use the current fit. The first check is a check to see if any pixels were detected along the current line. If not, then a new fit should be calculated. The second check is a very coarse sanity check. It compares the calculated curvature of each line, the slopes of each line, and the distance in pixels between each line. If any of these values are way off (like the wrong order of magnitude), then it says that the lines for that image are not valid and that the previous line should be drawn on the image. I do have a counter that waits for N number of bad frames before refitting the line. Update - I removed the sanity checks on curvature and slope; they proved to be very noisy and I would like to investigate further before adding them back in.
+
+Here's an example of my polynomial fit through non-zero pixels: 
 
 ![alt text][image5]
 
@@ -132,4 +140,8 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+If I had more time I would investigate two items. The first would be to fine-tune my color and gradient threshold approach. I am interested in leveraging the other color channels as the gradient direction information. The threshold values that I used could also stand to be optimized.
+
+The second item that I would look into is smoothing my lane lines across frames of the video. I am using the Lines class as suggested in the lectures, but haven't had time to determine the best approach to averaging across frames. 
+
+I can also imagine that my implementation could have issues if there is a white or yellow car directly in front of it in the same lane. I would also like to investigate different lighting conditions. The provided video and test images were taken in bright daylight and I could imagine my color and gradient thresholding having issues in other types of lighting. 
