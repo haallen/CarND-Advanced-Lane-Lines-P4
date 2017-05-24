@@ -1,9 +1,3 @@
-## Writeup Template
-
-### You can use this file as a template for your writeup if you want to submit it as a markdown file, but feel free to use some other method and submit a pdf if you prefer.
-
----
-
 **Advanced Lane Finding Project**
 
 The goals / steps of this project are the following:
@@ -20,7 +14,7 @@ The goals / steps of this project are the following:
 [//]: # (Image References)
 
 [image1]: ./output_images/calibration.png "Distorted and Undistorted Comparison of Calibration Image 1"
-[image2]: ./output_images/test_undist_cal1.jpg "Undistorted Calibration Image 1"
+[image2]: ./output_images/undistort_example.jpg "Undistorted Test Image"
 [image3]: ./examples/binary_combo_example.jpg "Binary Example"
 [image4]: ./examples/warped_straight_lines.jpg "Warp Example"
 [image5]: ./examples/color_fit_lines.jpg "Fit Visual"
@@ -58,16 +52,18 @@ For each of the provided calibration images:
  - append the detected corners to imgpoints list
  - draw the detected corners on the image (not required but a good sanity check)
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
+I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  The camera calibration and distortion coefficients were saved to a file for use in my pipeline.
+
+I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
 
 ![alt text][image1]
 
-
 ### Pipeline (single images)
+This section describes my basic pipeline and provides examples for each step. The same basic pipeline was used to process both the provided test images and the videos. 
 
 #### 1. Provide an example of a distortion-corrected image.
 
-To demonstrate this step, I will describe how I apply the distortion correction to one of the test images like this one:
+The camera matrix and distortion coefficients that were calculated as described above are applied to each image. Here's an example of an undistorted test image.
 ![alt text][image2]
 
 #### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
