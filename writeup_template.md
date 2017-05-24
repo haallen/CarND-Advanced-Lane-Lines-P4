@@ -70,9 +70,11 @@ The camera matrix and distortion coefficients that were calculated as described 
 
 I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines #110 through #167 in [file](AdvancedLaneDetection_video.py).  I implemented the algorithms described in the 'Color and Gradient' lesson to use both directional gradient and color thresholding. 
 
-I first apply direction gradient thresholding by converting the image to greyscale and use the Sobel operator to take the gradient in the x direction, take the absolute value of the gradient, and then scale the result to a value between 0 and 255. Then a binary threshold was applied. I arrived at the values of 20 and 100 for my thresholds through trial and error. More time could be spent here to find optimal thresholds.
+I first apply direction gradient thresholding by converting the image to greyscale and use the Sobel operator to take the gradient in the x direction, take the absolute value of the gradient, and then scale the result to a value between 0 and 255. Then a binary threshold was applied. 
 
 I then performed color thresholding by converting the image into HLS color space and thresholding on both the saturation and the brightness channels. By combining the outputs of these thresholds, I am making sure that yellow and white lines are detected and shadows and other dark lines are ignored. 
+
+I arrived at the values for all my thresholds through trial and error. More time could be spent here to find optimal thresholds.
 
 Here's an example of my output for this step.
 
@@ -84,14 +86,6 @@ The code for my perspective transform is in lines 192 through 218 in the file [f
 
 The perspective_transform function calculates the perspective transform matrix and inverse for a hardcoded set of source and destination points
 I chose the hardcode the source and destination points in the following manner:
-
-```python
-  #source points
-    src = np.float32([[(200, 720), (575, 475), (720, 475), (1125, 720)]])
-    
-    #destination points
-    dst = np.float32([[(350, 720), (350, 0), (975, 0), (975, 720)]])
-```
 
 This resulted in the following source and destination points:
 
@@ -117,11 +111,17 @@ Then I did some other stuff and fit my lane lines with a 2nd order polynomial ki
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+I did this in lines #381 through #415 in my code.
+
+To calculate the curvature, I scaled the lane-line pixel positions for both the left and right lane lines to meters using the provided conversion factor. I then fit lines through the scaled points and calculated the radius of curvature for each of the lines using the provided formula. 
+
+To calculate position of vehicle with respect to center, I used the fitted parameters for the left and right lane lines to calculate the x pixel value where each lane line crosses the x-axis. I averaged the left lane and right lane x values and subtracted the average from the value of the center of the image. I then converted this distace to meters to obtain the position of the vehicle with respect to the center of the image.
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
+I implemented this step in lines #422 through #454 in my code. Not much to say here.  
+
+Here is an example of my result on a test image:
 
 ![alt text][image6]
 
@@ -131,7 +131,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](./project_video.mp4).
 
 ---
 
@@ -139,4 +139,8 @@ Here's a [link to my video result](./project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+If I had more time I would investigate two items. The first would be to fine-tune my color and gradient threshold approach. I am interested in leveraging the other color channels as the gradient direction information. The threshold values that I used could also stand to be optimized.
+
+The second item that I would look into is smoothing my lane lines across frames of the video. I am using the Lines class as suggested in the lectures, but haven't had time to determine the best approach to averaging across frames. 
+
+I can also imagine that my implementation could have issues if there is a white or yellow car directly in front of it in the same lane. Not s
