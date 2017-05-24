@@ -111,7 +111,7 @@ detectNewLaneLines - Creates histogram of the bottom half of the image and finds
 
 detectExistingLaneLines - leverages the current lane line fit. Does not require histograming or the sliding window approach of detectNewLaneLines. Instead, it looks for nonzero pixels along the line. 
 
-In my pipeline, I have two checks for whether a new lane line fit should be calculated or to use the current fit. The first check is a check to see if any pixels were detected along the current line. If not, then a new fit should be calculated. The second check is a very coarse sanity check. It compares the calculated curvature of each line, the slopes of each line, and the distance in pixels between each line. If any of these values are way off (like the wrong order of magnitude), then it says that the lines for that image are not valid and that the previous line should be drawn on the image. I do have a counter that waits for N number of bad frames before refitting the line.
+In my pipeline, I have two checks for whether a new lane line fit should be calculated or to use the current fit. The first check is a check to see if any pixels were detected along the current line. If not, then a new fit should be calculated. The second check is a very coarse sanity check. It compares the calculated curvature of each line, the slopes of each line, and the distance in pixels between each line. If any of these values are way off (like the wrong order of magnitude), then it says that the lines for that image are not valid and that the previous line should be drawn on the image. I do have a counter that waits for N number of bad frames before refitting the line. Update - I removed the sanity checks on curvature and slope; they proved to be very noisy and I would like to investigate further before adding them back in.
 
 Here's an example of my polynomial fit through non-zero pixels: 
 
@@ -151,4 +151,6 @@ If I had more time I would investigate two items. The first would be to fine-tun
 
 The second item that I would look into is smoothing my lane lines across frames of the video. I am using the Lines class as suggested in the lectures, but haven't had time to determine the best approach to averaging across frames. 
 
-I can also imagine that my implementation could have issues if there is a white or yellow car directly in front of it in the same lane. Not s
+I can also imagine that my implementation could have issues if there is a white or yellow car directly in front of it in the same lane. I would also like to investigate different lighting conditions. The provided video and test images were taken in bright daylight and I could imagine my color and gradient thresholding having issues in other types of lighting. 
+
+
