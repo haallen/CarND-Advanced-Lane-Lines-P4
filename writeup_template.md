@@ -105,7 +105,15 @@ Note: before I applied the perspective transform, I applied a mask to the output
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+The identification of lane line pixels and fitting to a polynomial happens in lines #220 through #378 of [file](AdvancedLaneDetection_video.py). The input is the warped, thresholded image. I have two separate functions, detectNewLaneLines and detectExistingLaneLines, that are called depending on whether to leverage previous lane fit information or to start from scratch. The decision on whether or not to start from scratch will be detailed later. 
+
+detectNewLaneLines - Creates histogram of the bottom half of the image and finds the peak of the left and right hand side of the histogram. These position of these two peaks will be the starting points for the left and right lane line pixel positions, respectively. The image is then divided into a specified number of smaller windows starting at the x positions of the histogram peaks. Each window is iterated over and the indices of the nonzero pixels within each window are identified and stored. With each iteration, the position of the window is determined based on the average x-positions of the previous window's detected nonzero pixels. When all of the windows have been processed, two lines are fit with a second order polynomial through the non-zero pixel positions in all of the windows.
+
+detectExistingLaneLines - leverages the current lane line fit. Does not require histograming or the sliding window approach of detectNewLaneLines. Instead, it looks for nonzero pixels along the line. 
+
+In my pipeline, I have two checks for whether a new lane line fit should be calculated or to use the current fit. The first check is a check to see if any pixels were detected along the current line. If not, then a new fit should be calculated. The second check is a very coarse sanity check. It compares the calculated curvature of each line, the slopes of each line, and the distance in pixels between each line. If any of these values are way off (like the wrong order of magnitude), then it says that the lines for that image are not valid and that the previous line should be drawn on the image. I do have a counter that waits for N number of bad frames before refitting the line.
+
+Here's an example of my polynomial fit through non-zero pixels: 
 
 ![alt text][image5]
 
